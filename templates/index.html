@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Local AI — مساعدي الخاص</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; }
+    #messages { scroll-behavior: smooth; }
+    .msg-user { background: #4f46e5; color: #fff; border-radius: 18px 18px 4px 18px; }
+    .msg-ai   { background: #f3f4f6; color: #111; border-radius: 18px 18px 18px 4px; }
+    .msg-ai   { white-space: pre-wrap; }
+    .typing span { animation: blink 1s infinite; display: inline-block; }
+    .typing span:nth-child(2) { animation-delay:.2s }
+    .typing span:nth-child(3) { animation-delay:.4s }
+    @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+    .mem-card:hover .mem-actions { opacity: 1; }
+    .mem-actions { opacity: 0; transition: opacity .15s; }
+  </style>
+</head>
+<body class="h-screen flex bg-gray-100 overflow-hidden">
+
+<!-- ═══ Sidebar ═══════════════════════════════════════════════════════════════ -->
+<aside class="w-72 bg-white border-l border-gray-200 flex flex-col flex-shrink-0 overflow-hidden">
+
+  <!-- Logo -->
+  <div class="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
+    <div class="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white text-lg">🤖</div>
+    <div>
+      <div class="font-bold text-gray-900 text-sm">مساعدي الخاص</div>
+      <div id="status-dot" class="text-xs text-gray-400">جاري الاتصال...</div>
+    </div>
+  </div>
+
+  <!-- Model selector -->
+  <div class="px-4 py-2.5 border-b border-gray-100">
+    <select id="model-select"
+      class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 bg-white">
+      {% for m in models %}
+        <option value="{{ m }}" {% if 'llama3.2:3b' in m or loop.first %}selected{% endif %}>{{ m }}</option>
+      {% else %}
+        <option value="llama3.2:3b">llama3.2:3b</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- Toggles row -->
+  <div class="px-4 py-2.5 border-b border-gray-100 flex gap-3">
+    <div class="flex-1 flex items-center justify-between">
+      <span class="text-xs text-gray-600">📁 الملفات</span>
+      <button id="rag-toggle" onclick="toggleRag()"
+        class="relative w-10 h-5 rounded-full transition-colors bg-indigo-600">
+        <div id="rag-dot" class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform translate-x-5"></div>
+      </button>
+    </div>
+    <div class="w-px bg-gray-200"></div>
+    <div class="flex-1 flex items-center justify-between">
+      <span class="text-xs text-gray-600">🧠 حفظ تلقائي</span>
+      <button id="mem-toggle" onclick="toggleAutoMem()"
+        class="relative w-10 h-5 rounded-full transition-colors bg-gray-300">
+        <div id="mem-dot" class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform translate-x-0.5"></div>
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="flex border-b border-gray-100">
+    <button id="tab-files-btn" onclick="showTab('files')"
+      class="flex-1 py-2 text-xs font-semibold text-indigo-600 border-b-2 border-indigo-500">
+      📁 الملفات
+    </button>
+    <button id="tab-mem-btn" onclick="showTab('memory')"
+      class="flex-1 py-2 text-xs font-semibold text-gray-500 border-b-2 border-transparent">
+      🧠 الذاكرة <span id="mem-count-badge" class="bg-gray-200 text-gray-600 rounded-full px-1.5 ml-0.5">0</span>
+    </button>
+  </div>
+
+  <!-- ── Files Tab ── -->
+  <div id="tab-files" class="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2">
+    <div class="flex items-center justify-between">
+      <span class="text-xs font-semibold text-gray-500">الملفات المفهرسة</span>
+      <span id="chunks-count" class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">
+        {{ doc_count }} قطعة
+      </span>
+    </div>
+    <div id="file-list" class="space-y-1.5">
+      {% for f in files %}
+      <div class="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 text-xs group" data-name="{{ f }}">
+        <span class="text-base">{{ '📄' if f.endswith('.pdf') else ('📝' if f.endswith('.docx') else ('📊' if f.endswith(('.xlsx','.xls')) else '📃')) }}</span>
+        <span class="flex-1 truncate text-gray-700">{{ f }}</span>
+        <button onclick="deleteFile('{{ f }}')" class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600">✕</button>
+      </div>
+      {% else %}
+      <div id="no-files" class="text-center py-4 text-gray-400 text-xs">لا توجد ملفات بعد</div>
+      {% endfor %}
+    </div>
+    <label class="flex items-center justify-center gap-2 w-full border-2 border-dashed border-gray-300
+                  hover:border-indigo-400 rounded-xl py-3 px-3 text-xs text-gray-500 hover:text-indigo-600 cursor-pointer transition-colors mt-auto">
+      <input type="file" id="file-input" multiple accept=".txt,.pdf,.docx,.md,.xlsx,.xls" class="hidden" onchange="uploadFiles(this)">
+      ➕ رفع ملفات (PDF / Word / Excel / TXT)
+    </label>
+    <button onclick="indexDocs()"
+      class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium py-2 rounded-xl transition-colors">
+      ⚡ فهرسة الملفات
+    </button>
+    <button onclick="clearIndex()"
+      class="w-full bg-gray-100 hover:bg-gray-200 text-gray-500 text-xs py-2 rounded-xl transition-colors">
+      🗑️ مسح الفهرس
+    </button>
+  </div>
+
+  <!-- ── Memory Tab ── -->
+  <div id="tab-memory" class="hidden flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2">
+
+    <!-- Add form -->
+    <div class="bg-indigo-50 rounded-xl p-3 space-y-2">
+      <p class="text-xs font-semibold text-indigo-700">➕ إضافة معلومة جديدة</p>
+      <input id="mem-key" type="text" placeholder="النوع (مثال: رقم التليفون)"
+        class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-indigo-500">
+      <input id="mem-val" type="text" placeholder="القيمة (مثال: 0512345678)"
+        class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-indigo-500">
+      <button onclick="addMemory()"
+        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium py-1.5 rounded-lg transition-colors">
+        حفظ
+      </button>
+    </div>
+
+    <!-- Memory list -->
+    <div id="mem-list" class="space-y-2 flex-1">
+      <div class="text-center py-6 text-gray-400 text-xs" id="no-memories">
+        لا توجد معلومات محفوظة بعد
+      </div>
+    </div>
+
+    <button onclick="clearAllMemories()"
+      class="w-full bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-500 text-xs py-2 rounded-xl transition-colors mt-auto">
+      🗑️ مسح كل الذاكرة
+    </button>
+  </div>
+
+  <!-- Bottom -->
+  <div class="px-4 py-3 border-t border-gray-100">
+    <button onclick="clearChat()"
+      class="w-full bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 text-sm py-2 rounded-xl transition-colors">
+      🔄 محادثة جديدة
+    </button>
+  </div>
+</aside>
+
+<!-- ═══ Main chat ═══════════════════════════════════════════════════════════ -->
+<main class="flex-1 flex flex-col overflow-hidden">
+
+  <!-- Messages -->
+  <div id="messages" class="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+    <div class="flex justify-start">
+      <div class="msg-ai px-4 py-3 text-sm max-w-xl shadow-sm">
+        مرحباً! 👋 أنا مساعدك الخاص. يمكنك رفع ملفاتك وسأجيب على أسئلتك منها، أو اسألني أي سؤال.
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="hidden fixed top-4 right-1/2 translate-x-1/2 z-50 bg-gray-900 text-white text-sm px-5 py-2.5 rounded-xl shadow-lg"></div>
+
+  <!-- Input -->
+  <div class="px-4 py-3 border-t border-gray-100">
+    <div class="text-xs text-gray-400 mb-1.5">
+      💡 اكتب معلومة بدون <code class="bg-gray-100 px-1 rounded">؟</code> لحفظها، أو أضف <code class="bg-gray-100 px-1 rounded">؟</code> للسؤال
+    </div>
+    <div class="flex gap-2">
+      <textarea id="input" rows="1" placeholder="اكتب رسالتك هنا..."
+        class="flex-1 border border-gray-300 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 resize-none max-h-36"
+        onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button id="send-btn" onclick="sendMessage()"
+        class="bg-indigo-600 hover:bg-indigo-700 text-white w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors disabled:opacity-50">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l-7-7 7-7m7 7H5"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</main>
+
+<script>
+let history    = [];
+let useRag     = true;
+let autoMemory = false;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+checkStatus();
+loadMemories();
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function showTab(tab) {
+  ['files','memory'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
+    document.getElementById('tab-' + t).classList.toggle('flex', t === tab);
+    const btn = document.getElementById('tab-' + t + '-btn');
+    btn.classList.toggle('text-indigo-600', t === tab);
+    btn.classList.toggle('border-indigo-500', t === tab);
+    btn.classList.toggle('text-gray-500', t !== tab);
+    btn.classList.toggle('border-transparent', t !== tab);
+  });
+}
+
+// ── Status check ──────────────────────────────────────────────────────────────
+async function checkStatus() {
+  try {
+    const r = await fetch('/status');
+    const d = await r.json();
+    const el = document.getElementById('status-dot');
+    if (d.ollama) {
+      el.textContent = '🟢 متصل — ' + d.models.length + ' نموذج';
+      el.className = 'text-xs text-green-600';
+    } else {
+      el.textContent = '🔴 Ollama غير مشغّل';
+      el.className = 'text-xs text-red-500';
+    }
+    document.getElementById('chunks-count').textContent = d.chunks + ' قطعة';
+  } catch {}
+}
+
+// ── Toggles ───────────────────────────────────────────────────────────────────
+function toggleRag() {
+  useRag = !useRag;
+  setToggle('rag-toggle', 'rag-dot', useRag);
+}
+function toggleAutoMem() {
+  autoMemory = !autoMemory;
+  setToggle('mem-toggle', 'mem-dot', autoMemory);
+  if (autoMemory) showToast('🧠 الحفظ التلقائي مفعّل — سأحفظ ما تخبرني به عن نفسك');
+}
+function setToggle(btnId, dotId, on) {
+  const btn = document.getElementById(btnId);
+  const dot = document.getElementById(dotId);
+  btn.classList.toggle('bg-indigo-600', on);
+  btn.classList.toggle('bg-gray-300', !on);
+  dot.classList.toggle('translate-x-5', on);
+  dot.classList.toggle('translate-x-0.5', !on);
+}
+
+// ── Send message ──────────────────────────────────────────────────────────────
+async function sendMessage() {
+  const inp  = document.getElementById('input');
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.value = '';
+  autoResize(inp);
+  addMsg('user', text);
+  history.push({ role: 'user', content: text });
+  const typing = addTyping();
+  document.getElementById('send-btn').disabled = true;
+  try {
+    const r = await fetch('/chat', {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify({
+        messages    : history,
+        model       : document.getElementById('model-select').value,
+        use_rag     : useRag,
+        auto_memory : autoMemory,
+      }),
+    });
+    const d = await r.json();
+    typing.remove();
+    if (d.error) {
+      addMsg('ai', '⚠️ ' + d.error);
+    } else {
+      addMsg('ai', d.reply);
+      history.push({ role: 'assistant', content: d.reply });
+      if (d.saved_memories && d.saved_memories.length > 0) {
+        d.saved_memories.forEach(m => {
+          showToast(`💾 تم حفظ: ${m.key} ← ${m.value}`);
+          appendMemoryCard(m);
+        });
+        updateMemBadge();
+      }
+    }
+  } catch (e) {
+    typing.remove();
+    addMsg('ai', '⚠️ خطأ: ' + e.message);
+  }
+  document.getElementById('send-btn').disabled = false;
+}
+
+function addMsg(role, text) {
+  const msgs = document.getElementById('messages');
+  const div  = document.createElement('div');
+  div.className = 'flex ' + (role === 'user' ? 'justify-end' : 'justify-start');
+  div.innerHTML = `<div class="${role==='user'?'msg-user':'msg-ai'} px-4 py-3 text-sm max-w-xl shadow-sm">${escHtml(text)}</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function addTyping() {
+  const msgs = document.getElementById('messages');
+  const div  = document.createElement('div');
+  div.className = 'flex justify-start';
+  div.innerHTML = `<div class="msg-ai px-4 py-3 text-sm shadow-sm typing"><span>●</span><span>●</span><span>●</span></div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function escHtml(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+function clearChat() {
+  history = [];
+  document.getElementById('messages').innerHTML = `<div class="flex justify-start">
+    <div class="msg-ai px-4 py-3 text-sm max-w-xl shadow-sm">مرحباً! 👋 محادثة جديدة.</div></div>`;
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 144) + 'px';
+}
+
+// ── Memory CRUD ───────────────────────────────────────────────────────────────
+async function loadMemories() {
+  const r    = await fetch('/memories');
+  const list = await r.json();
+  const el   = document.getElementById('mem-list');
+  el.innerHTML = '';
+  if (!list.length) {
+    el.innerHTML = '<div class="text-center py-6 text-gray-400 text-xs" id="no-memories">لا توجد معلومات محفوظة بعد</div>';
+  } else {
+    list.forEach(m => appendMemoryCard(m, false));
+  }
+  updateMemBadge(list.length);
+}
+
+function appendMemoryCard(m, doUpdate = true) {
+  document.getElementById('no-memories')?.remove();
+  const el  = document.getElementById('mem-list');
+  const div = document.createElement('div');
+  div.className = 'mem-card bg-white border border-gray-200 rounded-xl px-3 py-2.5 relative';
+  div.id = 'mem-' + m.id;
+  div.innerHTML = `
+    <div class="flex items-start gap-2">
+      <div class="flex-1 min-w-0">
+        <div class="text-xs font-semibold text-indigo-700 truncate" id="mk-${m.id}">${escHtml(m.key)}</div>
+        <div class="text-xs text-gray-700 mt-0.5 break-words" id="mv-${m.id}">${escHtml(m.value)}</div>
+        <div class="text-xs text-gray-400 mt-1">${m.updated_at || m.created_at}</div>
+      </div>
+      <div class="mem-actions flex gap-1 flex-shrink-0">
+        <button onclick="editMemory(${m.id},'${escAttr(m.key)}','${escAttr(m.value)}')"
+          class="text-xs bg-gray-100 hover:bg-indigo-100 text-gray-600 hover:text-indigo-700 px-2 py-1 rounded-lg">✏️</button>
+        <button onclick="deleteMemory(${m.id})"
+          class="text-xs bg-gray-100 hover:bg-red-100 text-gray-600 hover:text-red-600 px-2 py-1 rounded-lg">🗑️</button>
+      </div>
+    </div>`;
+  el.appendChild(div);
+  if (doUpdate) updateMemBadge();
+}
+
+function updateMemBadge(n) {
+  const count = n !== undefined ? n : document.getElementById('mem-list').querySelectorAll('.mem-card').length;
+  document.getElementById('mem-count-badge').textContent = count;
+}
+
+async function addMemory() {
+  const key = document.getElementById('mem-key').value.trim();
+  const val = document.getElementById('mem-val').value.trim();
+  if (!key || !val) { showToast('❌ أدخل النوع والقيمة'); return; }
+  const r = await fetch('/memories/add', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ key, value: val }),
+  });
+  const m = await r.json();
+  if (m.error) { showToast('❌ ' + m.error); return; }
+  appendMemoryCard(m);
+  document.getElementById('mem-key').value = '';
+  document.getElementById('mem-val').value = '';
+  showToast('✅ تم الحفظ: ' + key);
+}
+
+function editMemory(id, key, val) {
+  const newKey = prompt('تعديل النوع:', key);
+  if (newKey === null) return;
+  const newVal = prompt('تعديل القيمة:', val);
+  if (newVal === null) return;
+  fetch('/memories/update', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ id, key: newKey, value: newVal }),
+  }).then(() => {
+    document.getElementById('mk-' + id).textContent = newKey;
+    document.getElementById('mv-' + id).textContent = newVal;
+    showToast('✅ تم التعديل');
+  });
+}
+
+async function deleteMemory(id) {
+  if (!confirm('حذف هذه المعلومة؟')) return;
+  await fetch('/memories/delete', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ id }),
+  });
+  document.getElementById('mem-' + id)?.remove();
+  updateMemBadge();
+  if (!document.querySelector('.mem-card')) {
+    document.getElementById('mem-list').innerHTML =
+      '<div class="text-center py-6 text-gray-400 text-xs" id="no-memories">لا توجد معلومات محفوظة بعد</div>';
+  }
+  showToast('🗑️ تم الحذف');
+}
+
+async function clearAllMemories() {
+  if (!confirm('مسح كل الذاكرة؟')) return;
+  await fetch('/memories/clear', { method: 'POST' });
+  document.getElementById('mem-list').innerHTML =
+    '<div class="text-center py-6 text-gray-400 text-xs" id="no-memories">لا توجد معلومات محفوظة بعد</div>';
+  updateMemBadge(0);
+  showToast('🗑️ تم مسح الذاكرة');
+}
+
+function escAttr(t) { return t.replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+
+// ── File management ───────────────────────────────────────────────────────────
+async function uploadFiles(input) {
+  const form = new FormData();
+  for (const f of input.files) form.append('files', f);
+  showToast('جاري الرفع...');
+  const r = await fetch('/upload', { method: 'POST', body: form });
+  const d = await r.json();
+  showToast(`✅ تم رفع ${d.saved.length} ملف`);
+  for (const name of d.saved) addFileItem(name);
+  document.getElementById('no-files')?.remove();
+  input.value = '';
+}
+
+async function indexDocs() {
+  showToast('⚡ جاري الفهرسة...');
+  const r = await fetch('/index_docs', { method: 'POST' });
+  const d = await r.json();
+  if (d.error) { showToast('❌ ' + d.error); return; }
+  document.getElementById('chunks-count').textContent = d.total_chunks + ' قطعة';
+  if (d.errors && d.errors.length > 0) {
+    showToast('⚠️ خطأ: ' + d.errors[0]);
+  } else {
+    showToast(`✅ فُهرس ${d.indexed} ملف — ${d.total_chunks} قطعة`);
+  }
+}
+
+async function clearIndex() {
+  await fetch('/clear_index', { method: 'POST' });
+  document.getElementById('chunks-count').textContent = '0 قطعة';
+  showToast('🗑️ تم مسح الفهرس');
+}
+
+async function deleteFile(name) {
+  await fetch('/delete_file', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ name }),
+  });
+  document.querySelector(`[data-name="${name}"]`)?.remove();
+  showToast('تم حذف ' + name);
+}
+
+function addFileItem(name) {
+  const list = document.getElementById('file-list');
+  const icon = name.endsWith('.pdf') ? '📄' : name.endsWith('.docx') ? '📝' : (name.endsWith('.xlsx') || name.endsWith('.xls')) ? '📊' : '📃';
+  const div  = document.createElement('div');
+  div.className = 'flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 text-xs group';
+  div.dataset.name = name;
+  div.innerHTML = `<span class="text-base">${icon}</span>
+    <span class="flex-1 truncate text-gray-700">${name}</span>
+    <button onclick="deleteFile('${name}')" class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600">✕</button>`;
+  list.appendChild(div);
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), 3500);
+}
+</script>
+</body>
+</html>
