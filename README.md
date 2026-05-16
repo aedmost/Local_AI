@@ -47,6 +47,34 @@ ollama pull nomic-embed-text
 - `llama3.2:3b` — موديل المحادثة
 - `nomic-embed-text` — موديل التضمينات للـ RAG
 
+### الموديلات المتاحة
+
+يمكنك تنزيل أي موديل من القائمة أدناه حسب قدرات جهازك:
+
+| الموديل | الحجم | RAM المطلوبة | الوصف | أمر التنزيل |
+|---------|------|-------------|-------|------------|
+| **llama3.2:1b** | ~1 GB | ~2-3 GB | خفيف وسريع للأجهزة الضعيفة | `ollama pull llama3.2:1b` |
+| **llama3.2:3b** | ~2 GB | ~4-5 GB | متوسط (الافتراضي) — موازنة جيدة | `ollama pull llama3.2:3b` |
+| **llama3.1:8b** | ~4.7 GB | ~6-8 GB | قوي للأجهزة المتوسطة | `ollama pull llama3.1:8b` |
+| **llama3.1:70b** | ~40 GB | ~40-50 GB | أقوى موديل — يحتاج RAM كبيرة | `ollama pull llama3.1:70b` |
+| **mistral:7b** | ~4.1 GB | ~5-6 GB | خيار قوي آخر | `ollama pull mistral:7b` |
+| **qwen2.5:7b** | ~4.5 GB | ~5-6 GB | موديل صيني قوي | `ollama pull qwen2.5:7b` |
+| **phi3:mini** | ~2.3 GB | ~3-4 GB | خفيف وسريع من Microsoft | `ollama pull phi3:mini` |
+| **gemma2:9b** | ~5.5 GB | ~7-8 GB | موديل من Google | `ollama pull gemma2:9b` |
+
+**ملاحظات:**
+- `nomic-embed-text` ضروري لعمل RAG (البحث في الملفات)
+- الموديلات الأكبر تعطي نتائج أفضل لكن تحتاج RAM أكبر
+- يمكن تنزيل الموديلات من الواجهة في تبويب **الإعدادات**
+
+**روابط الموديلات:**
+- [Llama 3](https://ollama.com/library/llama3)
+- [Mistral](https://ollama.com/library/mistral)
+- [Qwen 2.5](https://ollama.com/library/qwen2.5)
+- [Phi 3](https://ollama.com/library/phi3)
+- [Gemma 2](https://ollama.com/library/gemma2)
+- [Nomic Embed Text](https://ollama.com/library/nomic-embed-text)
+
 ### 3. تثبيت مكتبات Python
 
 ```bash

@@ -128,7 +128,38 @@ def clear_index():
 @app.route("/status")
 def status():
     models = rag.list_models()
-    return jsonify({"ollama": bool(models), "models": models, "chunks": rag.get_collection().count()})
+    return jsonify({"ollama": bool(models), "models": models, "chunks": rag.get_collection().count(), "files_dir": str(rag.FILES_DIR), "db_dir": str(rag.DB_DIR)})
+
+
+@app.route("/set_directories", methods=["POST"])
+def set_directories():
+    """تغيير مسارات مجلدات الملفات وقاعدة البيانات"""
+    data = request.json or {}
+    files_dir = data.get("files_dir")
+    db_dir = data.get("db_dir")
+    if not files_dir or not db_dir:
+        return jsonify({"error": "files_dir و db_dir مطلوبان"}), 400
+    try:
+        from pathlib import Path
+        rag.set_directories(Path(files_dir), Path(db_dir))
+        return jsonify({"ok": True, "files_dir": str(rag.FILES_DIR), "db_dir": str(rag.DB_DIR)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/pull_model", methods=["POST"])
+def pull_model():
+    """تنزيل موديل جديد من Ollama"""
+    data = request.json or {}
+    model = data.get("model")
+    if not model:
+        return jsonify({"error": "model مطلوب"}), 400
+    try:
+        import ollama
+        ollama.pull(model)
+        return jsonify({"ok": True, "model": model})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.errorhandler(Exception)

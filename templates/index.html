@@ -8,37 +8,47 @@
   <style>
     body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; }
     #messages { scroll-behavior: smooth; }
-    .msg-user { background: #4f46e5; color: #fff; border-radius: 18px 18px 4px 18px; }
-    .msg-ai   { background: #f3f4f6; color: #111; border-radius: 18px 18px 18px 4px; }
-    .msg-ai   { white-space: pre-wrap; }
+    .msg-user { background: linear-gradient(135deg, #4f46e5, #6366f1); color: #fff; border-radius: 20px 20px 6px 20px; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3); }
+    .msg-ai   { background: linear-gradient(135deg, #f9fafb, #f3f4f6); color: #1f2937; border-radius: 20px 20px 20px 6px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08); }
+    .msg-ai   { white-space: pre-wrap; line-height: 1.6; }
     .typing span { animation: blink 1s infinite; display: inline-block; }
     .typing span:nth-child(2) { animation-delay:.2s }
     .typing span:nth-child(3) { animation-delay:.4s }
     @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
-    ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     .mem-card:hover .mem-actions { opacity: 1; }
-    .mem-actions { opacity: 0; transition: opacity .15s; }
+    .mem-actions { opacity: 0; transition: opacity .2s; }
+    .btn-primary { background: linear-gradient(135deg, #4f46e5, #6366f1); }
+    .btn-primary:hover { background: linear-gradient(135deg, #4338ca, #4f46e5); }
+    .btn-success { background: linear-gradient(135deg, #10b981, #059669); }
+    .btn-success:hover { background: linear-gradient(135deg, #059669, #047857); }
+    .tab-btn { transition: all 0.2s ease; }
+    .tab-btn:hover { background: #f3f4f6; }
+    .input-field { transition: all 0.2s ease; }
+    .input-field:focus { box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
   </style>
 </head>
-<body class="h-screen flex bg-gray-100 overflow-hidden">
+<body class="h-screen flex bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
 
 <!-- ═══ Sidebar ═══════════════════════════════════════════════════════════════ -->
-<aside class="w-72 bg-white border-l border-gray-200 flex flex-col flex-shrink-0 overflow-hidden">
+<aside class="w-80 bg-white/95 backdrop-blur-sm border-l border-gray-200 flex flex-col flex-shrink-0 overflow-hidden shadow-lg">
 
   <!-- Logo -->
-  <div class="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
-    <div class="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white text-lg">🤖</div>
+  <div class="px-5 py-4 border-b border-gray-100 flex items-center gap-3 bg-gradient-to-r from-indigo-50 to-white">
+    <div class="w-11 h-11 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center text-white text-xl shadow-md">🤖</div>
     <div>
-      <div class="font-bold text-gray-900 text-sm">مساعدي الخاص</div>
-      <div id="status-dot" class="text-xs text-gray-400">جاري الاتصال...</div>
+      <div class="font-bold text-gray-900 text-base">مساعدي الخاص</div>
+      <div id="status-dot" class="text-xs text-gray-500 font-medium">جاري الاتصال...</div>
     </div>
   </div>
 
   <!-- Model selector -->
-  <div class="px-4 py-2.5 border-b border-gray-100">
+  <div class="px-5 py-3 border-b border-gray-100">
+    <label class="text-xs text-gray-500 font-medium block mb-2">🤖 اختر الموديل</label>
     <select id="model-select"
-      class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 bg-white">
+      class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 bg-white input-field">
       {% for m in models %}
         <option value="{{ m }}" {% if 'llama3.2:3b' in m or loop.first %}selected{% endif %}>{{ m }}</option>
       {% else %}
@@ -48,135 +58,182 @@
   </div>
 
   <!-- Toggles row -->
-  <div class="px-4 py-2.5 border-b border-gray-100 flex gap-3">
-    <div class="flex-1 flex items-center justify-between">
-      <span class="text-xs text-gray-600">📁 الملفات</span>
+  <div class="px-5 py-3 border-b border-gray-100 flex gap-4">
+    <div class="flex-1 flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2">
+      <span class="text-sm text-gray-700 font-medium">📁 الملفات</span>
       <button id="rag-toggle" onclick="toggleRag()"
-        class="relative w-10 h-5 rounded-full transition-colors bg-indigo-600">
-        <div id="rag-dot" class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform translate-x-5"></div>
+        class="relative w-12 h-6 rounded-full transition-colors bg-indigo-600 shadow-sm">
+        <div id="rag-dot" class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform translate-x-6"></div>
       </button>
     </div>
-    <div class="w-px bg-gray-200"></div>
-    <div class="flex-1 flex items-center justify-between">
-      <span class="text-xs text-gray-600">🧠 حفظ تلقائي</span>
+    <div class="flex-1 flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2">
+      <span class="text-sm text-gray-700 font-medium">🧠 حفظ تلقائي</span>
       <button id="mem-toggle" onclick="toggleAutoMem()"
-        class="relative w-10 h-5 rounded-full transition-colors bg-gray-300">
-        <div id="mem-dot" class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform translate-x-0.5"></div>
+        class="relative w-12 h-6 rounded-full transition-colors bg-gray-300 shadow-sm">
+        <div id="mem-dot" class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform translate-x-0.5"></div>
       </button>
     </div>
   </div>
 
   <!-- Tabs -->
-  <div class="flex border-b border-gray-100">
+  <div class="flex border-b border-gray-100 bg-gray-50">
     <button id="tab-files-btn" onclick="showTab('files')"
-      class="flex-1 py-2 text-xs font-semibold text-indigo-600 border-b-2 border-indigo-500">
+      class="flex-1 py-3 text-sm font-semibold text-indigo-600 border-b-3 border-indigo-500 tab-btn">
       📁 الملفات
     </button>
     <button id="tab-mem-btn" onclick="showTab('memory')"
-      class="flex-1 py-2 text-xs font-semibold text-gray-500 border-b-2 border-transparent">
-      🧠 الذاكرة <span id="mem-count-badge" class="bg-gray-200 text-gray-600 rounded-full px-1.5 ml-0.5">0</span>
+      class="flex-1 py-3 text-sm font-semibold text-gray-500 border-b-3 border-transparent tab-btn">
+      🧠 الذاكرة <span id="mem-count-badge" class="bg-indigo-100 text-indigo-600 rounded-full px-2 py-0.5 text-xs ml-1">0</span>
+    </button>
+    <button id="tab-settings-btn" onclick="showTab('settings')"
+      class="flex-1 py-3 text-sm font-semibold text-gray-500 border-b-3 border-transparent tab-btn">
+      ⚙️ الإعدادات
     </button>
   </div>
 
   <!-- ── Files Tab ── -->
-  <div id="tab-files" class="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2">
+  <div id="tab-files" class="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-3">
     <div class="flex items-center justify-between">
-      <span class="text-xs font-semibold text-gray-500">الملفات المفهرسة</span>
-      <span id="chunks-count" class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">
+      <span class="text-sm font-semibold text-gray-700">الملفات المفهرسة</span>
+      <span id="chunks-count" class="text-sm bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full font-medium">
         {{ doc_count }} قطعة
       </span>
     </div>
-    <div id="file-list" class="space-y-1.5">
+    <div id="file-list" class="space-y-2">
       {% for f in files %}
-      <div class="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 text-xs group" data-name="{{ f }}">
-        <span class="text-base">{{ '📄' if f.endswith('.pdf') else ('📝' if f.endswith('.docx') else ('📊' if f.endswith(('.xlsx','.xls')) else '📃')) }}</span>
+      <div class="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm group hover:border-indigo-300 transition-colors" data-name="{{ f }}">
+        <span class="text-lg">{{ '📄' if f.endswith('.pdf') else ('📝' if f.endswith('.docx') else ('📊' if f.endswith(('.xlsx','.xls')) else '📃')) }}</span>
         <span class="flex-1 truncate text-gray-700">{{ f }}</span>
-        <button onclick="deleteFile('{{ f }}')" class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600">✕</button>
+        <button onclick="deleteFile('{{ f }}')" class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-lg transition-opacity">✕</button>
       </div>
       {% else %}
-      <div id="no-files" class="text-center py-4 text-gray-400 text-xs">لا توجد ملفات بعد</div>
+      <div id="no-files" class="text-center py-8 text-gray-400 text-sm">لا توجد ملفات بعد</div>
       {% endfor %}
     </div>
     <label class="flex items-center justify-center gap-2 w-full border-2 border-dashed border-gray-300
-                  hover:border-indigo-400 rounded-xl py-3 px-3 text-xs text-gray-500 hover:text-indigo-600 cursor-pointer transition-colors mt-auto">
+                  hover:border-indigo-400 hover:bg-indigo-50 rounded-xl py-4 px-4 text-sm text-gray-500 hover:text-indigo-600 cursor-pointer transition-all mt-auto">
       <input type="file" id="file-input" multiple accept=".txt,.pdf,.docx,.md,.xlsx,.xls" class="hidden" onchange="uploadFiles(this)">
       ➕ رفع ملفات (PDF / Word / Excel / TXT)
     </label>
     <button onclick="indexDocs()"
-      class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium py-2 rounded-xl transition-colors">
+      class="w-full btn-primary text-white text-sm font-medium py-3 rounded-xl transition-all shadow-md hover:shadow-lg">
       ⚡ فهرسة الملفات
     </button>
     <button onclick="clearIndex()"
-      class="w-full bg-gray-100 hover:bg-gray-200 text-gray-500 text-xs py-2 rounded-xl transition-colors">
+      class="w-full bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 text-sm py-3 rounded-xl transition-colors">
       🗑️ مسح الفهرس
     </button>
   </div>
 
   <!-- ── Memory Tab ── -->
-  <div id="tab-memory" class="hidden flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2">
+  <div id="tab-memory" class="hidden flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-3">
 
     <!-- Add form -->
-    <div class="bg-indigo-50 rounded-xl p-3 space-y-2">
-      <p class="text-xs font-semibold text-indigo-700">➕ إضافة معلومة جديدة</p>
+    <div class="bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 rounded-xl p-4 space-y-3 shadow-sm">
+      <p class="text-sm font-semibold text-indigo-700">➕ إضافة معلومة جديدة</p>
       <input id="mem-key" type="text" placeholder="النوع (مثال: رقم التليفون)"
-        class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-indigo-500">
+        class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 input-field">
       <input id="mem-val" type="text" placeholder="القيمة (مثال: 0512345678)"
-        class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-indigo-500">
+        class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 input-field">
       <button onclick="addMemory()"
-        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium py-1.5 rounded-lg transition-colors">
+        class="w-full btn-primary text-white text-sm font-medium py-2.5 rounded-xl transition-all shadow-md hover:shadow-lg">
         حفظ
       </button>
     </div>
 
     <!-- Memory list -->
     <div id="mem-list" class="space-y-2 flex-1">
-      <div class="text-center py-6 text-gray-400 text-xs" id="no-memories">
+      <div class="text-center py-8 text-gray-400 text-sm" id="no-memories">
         لا توجد معلومات محفوظة بعد
       </div>
     </div>
 
     <button onclick="clearAllMemories()"
-      class="w-full bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-500 text-xs py-2 rounded-xl transition-colors mt-auto">
+      class="w-full bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 text-sm py-3 rounded-xl transition-colors mt-auto">
       🗑️ مسح كل الذاكرة
     </button>
   </div>
 
+  <!-- ── Settings Tab ── -->
+  <div id="tab-settings" class="hidden flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-4">
+    <!-- Directories -->
+    <div class="bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-4 space-y-3 shadow-sm">
+      <p class="text-sm font-semibold text-gray-700">📁 مسارات المجلدات</p>
+      <div class="space-y-3">
+        <div>
+          <label class="text-sm text-gray-500 font-medium block mb-2">مجلد الملفات</label>
+          <div class="flex gap-2">
+            <input id="files-dir-input" type="text" readonly
+              class="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none">
+            <button onclick="selectDirectory('files')" class="btn-primary text-white text-sm px-4 py-2.5 rounded-xl transition-all shadow-md hover:shadow-lg">اختر</button>
+          </div>
+        </div>
+        <div>
+          <label class="text-sm text-gray-500 font-medium block mb-2">مجلد قاعدة البيانات</label>
+          <div class="flex gap-2">
+            <input id="db-dir-input" type="text" readonly
+              class="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none">
+            <button onclick="selectDirectory('db')" class="btn-primary text-white text-sm px-4 py-2.5 rounded-xl transition-all shadow-md hover:shadow-lg">اختر</button>
+          </div>
+        </div>
+      </div>
+      <button onclick="saveDirectories()"
+        class="w-full btn-success text-white text-sm font-medium py-2.5 rounded-xl transition-all shadow-md hover:shadow-lg">
+        💾 حفظ المسارات
+      </button>
+    </div>
+
+    <!-- Models -->
+    <div class="bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-4 space-y-3 shadow-sm">
+      <p class="text-sm font-semibold text-gray-700">🤖 الموديلات</p>
+      <div>
+        <label class="text-sm text-gray-500 font-medium block mb-2">تنزيل موديل جديد</label>
+        <div class="flex gap-2">
+          <input id="model-name-input" type="text" placeholder="مثال: llama3.2:1b"
+            class="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 input-field">
+          <button onclick="pullModel()" class="btn-primary text-white text-sm px-4 py-2.5 rounded-xl transition-all shadow-md hover:shadow-lg">تنزيل</button>
+        </div>
+      </div>
+      <p class="text-sm text-gray-400">موديلات مقترحة: llama3.2:1b, llama3.2:3b, llama3.1:8b, mistral:7b</p>
+    </div>
+  </div>
+
   <!-- Bottom -->
-  <div class="px-4 py-3 border-t border-gray-100">
+  <div class="px-5 py-4 border-t border-gray-100 bg-gray-50">
     <button onclick="clearChat()"
-      class="w-full bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 text-sm py-2 rounded-xl transition-colors">
+      class="w-full bg-white hover:bg-red-50 hover:text-red-600 text-gray-600 text-sm py-3 rounded-xl transition-all border border-gray-200 hover:border-red-200 shadow-sm">
       🔄 محادثة جديدة
     </button>
   </div>
 </aside>
 
 <!-- ═══ Main chat ═══════════════════════════════════════════════════════════ -->
-<main class="flex-1 flex flex-col overflow-hidden">
+<main class="flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-white to-gray-50">
 
   <!-- Messages -->
-  <div id="messages" class="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+  <div id="messages" class="flex-1 overflow-y-auto px-8 py-8 space-y-6">
     <div class="flex justify-start">
-      <div class="msg-ai px-4 py-3 text-sm max-w-xl shadow-sm">
+      <div class="msg-ai px-5 py-4 text-base max-w-2xl">
         مرحباً! 👋 أنا مساعدك الخاص. يمكنك رفع ملفاتك وسأجيب على أسئلتك منها، أو اسألني أي سؤال.
       </div>
     </div>
   </div>
 
   <!-- Toast -->
-  <div id="toast" class="hidden fixed top-4 right-1/2 translate-x-1/2 z-50 bg-gray-900 text-white text-sm px-5 py-2.5 rounded-xl shadow-lg"></div>
+  <div id="toast" class="hidden fixed top-6 right-1/2 translate-x-1/2 z-50 bg-gray-900/95 backdrop-blur-sm text-white text-sm px-6 py-3 rounded-xl shadow-xl"></div>
 
   <!-- Input -->
-  <div class="px-4 py-3 border-t border-gray-100">
-    <div class="text-xs text-gray-400 mb-1.5">
-      💡 اكتب معلومة بدون <code class="bg-gray-100 px-1 rounded">؟</code> لحفظها، أو أضف <code class="bg-gray-100 px-1 rounded">؟</code> للسؤال
+  <div class="px-8 py-5 border-t border-gray-200 bg-white/80 backdrop-blur-sm">
+    <div class="text-sm text-gray-500 mb-3 font-medium">
+      💡 اكتب معلومة بدون <code class="bg-gray-100 px-2 py-1 rounded">؟</code> لحفظها، أو أضف <code class="bg-gray-100 px-2 py-1 rounded">؟</code> للسؤال
     </div>
-    <div class="flex gap-2">
+    <div class="flex gap-3">
       <textarea id="input" rows="1" placeholder="اكتب رسالتك هنا..."
-        class="flex-1 border border-gray-300 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 resize-none max-h-36"
+        class="flex-1 border border-gray-300 rounded-2xl px-5 py-4 text-base focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 resize-none max-h-40 input-field shadow-sm"
         onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
       <button id="send-btn" onclick="sendMessage()"
-        class="bg-indigo-600 hover:bg-indigo-700 text-white w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors disabled:opacity-50">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        class="btn-primary text-white w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all shadow-lg hover:shadow-xl disabled:opacity-50">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l-7-7 7-7m7 7H5"/>
         </svg>
       </button>
@@ -195,15 +252,18 @@ loadMemories();
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 function showTab(tab) {
-  ['files','memory'].forEach(t => {
+  ['files','memory','settings'].forEach(t => {
     document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
     document.getElementById('tab-' + t).classList.toggle('flex', t === tab);
     const btn = document.getElementById('tab-' + t + '-btn');
-    btn.classList.toggle('text-indigo-600', t === tab);
-    btn.classList.toggle('border-indigo-500', t === tab);
-    btn.classList.toggle('text-gray-500', t !== tab);
-    btn.classList.toggle('border-transparent', t !== tab);
+    if (btn) {
+      btn.classList.toggle('text-indigo-600', t === tab);
+      btn.classList.toggle('border-indigo-500', t === tab);
+      btn.classList.toggle('text-gray-500', t !== tab);
+      btn.classList.toggle('border-transparent', t !== tab);
+    }
   });
+  if (tab === 'settings') loadSettings();
 }
 
 // ── Status check ──────────────────────────────────────────────────────────────
@@ -238,7 +298,7 @@ function setToggle(btnId, dotId, on) {
   const dot = document.getElementById(dotId);
   btn.classList.toggle('bg-indigo-600', on);
   btn.classList.toggle('bg-gray-300', !on);
-  dot.classList.toggle('translate-x-5', on);
+  dot.classList.toggle('translate-x-6', on);
   dot.classList.toggle('translate-x-0.5', !on);
 }
 
@@ -484,6 +544,83 @@ function showToast(msg) {
   t.classList.remove('hidden');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.add('hidden'), 3500);
+}
+
+// ── Settings ────────────────────────────────────────────────────────────────────
+async function loadSettings() {
+  try {
+    const r = await fetch('/status');
+    const d = await r.json();
+    document.getElementById('files-dir-input').value = d.files_dir || '';
+    document.getElementById('db-dir-input').value = d.db_dir || '';
+  } catch (e) {
+    console.error('Failed to load settings:', e);
+  }
+}
+
+function selectDirectory(type) {
+  // في المتصفح لا يمكن فتح نافذة اختيار مجلدات مباشرة
+  // سنستخدم إدخال يدوي للمسار
+  const inputId = type === 'files' ? 'files-dir-input' : 'db-dir-input';
+  const currentPath = document.getElementById(inputId).value;
+  const newPath = prompt('أدخل المسار الكامل للمجلد:', currentPath || '');
+  if (newPath) {
+    document.getElementById(inputId).value = newPath;
+  }
+}
+
+async function saveDirectories() {
+  const filesDir = document.getElementById('files-dir-input').value;
+  const dbDir = document.getElementById('db-dir-input').value;
+  if (!filesDir || !dbDir) {
+    showToast('❌ أدخل المسارات أولاً');
+    return;
+  }
+  try {
+    const r = await fetch('/set_directories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files_dir: filesDir, db_dir: dbDir }),
+    });
+    const d = await r.json();
+    if (d.error) {
+      showToast('❌ ' + d.error);
+    } else {
+      showToast('✅ تم حفظ المسارات — سيتم إعادة تحميل الصفحة');
+      setTimeout(() => location.reload(), 1500);
+    }
+  } catch (e) {
+    showToast('❌ خطأ: ' + e.message);
+  }
+}
+
+async function pullModel() {
+  const model = document.getElementById('model-name-input').value.trim();
+  if (!model) {
+    showToast('❌ أدخل اسم الموديل');
+    return;
+  }
+  showToast('⬇️ جاري تنزيل ' + model + '...');
+  try {
+    const r = await fetch('/pull_model', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model }),
+    });
+    const d = await r.json();
+    if (d.error) {
+      showToast('❌ ' + d.error);
+    } else {
+      showToast('✅ تم تنزيل ' + model + ' — سيتم تحديث القائمة');
+      document.getElementById('model-name-input').value = '';
+      setTimeout(() => {
+        checkStatus();
+        location.reload();
+      }, 2000);
+    }
+  } catch (e) {
+    showToast('❌ خطأ: ' + e.message);
+  }
 }
 </script>
 </body>

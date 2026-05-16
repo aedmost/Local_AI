@@ -15,6 +15,17 @@ _client     = chromadb.PersistentClient(path=str(DB_DIR))
 _collection = _client.get_or_create_collection("docs")
 
 
+def set_directories(files_dir: Path, db_dir: Path):
+    """تغيير مسارات المجلدات وإعادة تهيئة قاعدة البيانات"""
+    global FILES_DIR, DB_DIR, _client, _collection
+    FILES_DIR = Path(files_dir)
+    DB_DIR = Path(db_dir)
+    FILES_DIR.mkdir(parents=True, exist_ok=True)
+    DB_DIR.mkdir(parents=True, exist_ok=True)
+    _client = chromadb.PersistentClient(path=str(DB_DIR))
+    _collection = _client.get_or_create_collection("docs")
+
+
 def get_collection():
     return _collection
 
