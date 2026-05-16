@@ -1,4 +1,5 @@
 import os
+import json
 import threading
 from pathlib import Path
 from flask import Flask, request, jsonify, render_template
@@ -8,6 +9,22 @@ import memory
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100 MB
+
+# ── Config Management ────────────────────────────────────────────────────────────
+CONFIG_FILE = Path(__file__).parent / "config.json"
+
+def load_config():
+    if CONFIG_FILE.exists():
+        with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {"ngrok_token": "", "ngrok_domain": "", "ngrok_enabled": False, "ngrok_url": ""}
+
+def save_config(config):
+    with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+        json.dump(config, f, ensure_ascii=False, indent=2)
+
+config = load_config()
+ngrok_tunnel = None
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -128,7 +145,14 @@ def clear_index():
 @app.route("/status")
 def status():
     models = rag.list_models()
-    return jsonify({"ollama": bool(models), "models": models, "chunks": rag.get_collection().count(), "files_dir": str(rag.FILES_DIR), "db_dir": str(rag.DB_DIR)})
+    return jsonify({
+        "ollama": bool(models),
+        "models": models,
+        "chunks": rag.get_collection().count(),
+        "files_dir": str(rag.FILES_DIR),
+        "db_dir": str(rag.DB_DIR),
+        "models_dir": rag.get_models_dir()
+    })
 
 
 @app.route("/set_directories", methods=["POST"])
@@ -147,6 +171,23 @@ def set_directories():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/set_models_dir", methods=["POST"])
+def set_models_dir():
+    """تغيير مسار مجلد الموديلات"""
+    data = request.json or {}
+    models_dir = data.get("models_dir")
+    if not models_dir:
+        return jsonify({"error": "models_dir مطلوب"}), 400
+    try:
+        from pathlib import Path
+        result = rag.set_models_dir(Path(models_dir))
+        config["models_dir"] = result
+        save_config(config)
+        return jsonify({"ok": True, "models_dir": result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/pull_model", methods=["POST"])
 def pull_model():
     """تنزيل موديل جديد من Ollama"""
@@ -160,6 +201,84 @@ def pull_model():
         return jsonify({"ok": True, "model": model})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ── Ngrok Routes ─────────────────────────────────────────────────────────────────
+@app.route("/ngrok/start", methods=["POST"])
+def start_ngrok():
+    """تشغيل ngrok tunnel"""
+    global ngrok_tunnel
+    data = request.json or {}
+    token = data.get("token", config.get("ngrok_token", ""))
+    domain = data.get("domain", config.get("ngrok_domain", ""))
+
+    if not token:
+        return jsonify({"error": "ngrok token مطلوب"}), 400
+
+    try:
+        from pyngrok import ngrok, conf
+
+        # Set ngrok auth token
+        conf.set_default_auth_token(token)
+
+        # Start tunnel
+        if domain:
+            ngrok_tunnel = ngrok.connect(5050, domain=domain, bind_tls=True)
+        else:
+            ngrok_tunnel = ngrok.connect(5050, bind_tls=True)
+
+        url = ngrok_tunnel.public_url
+
+        # Save to config
+        config["ngrok_token"] = token
+        config["ngrok_domain"] = domain
+        config["ngrok_enabled"] = True
+        config["ngrok_url"] = url
+        save_config(config)
+
+        return jsonify({"ok": True, "url": url, "enabled": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/ngrok/stop", methods=["POST"])
+def stop_ngrok():
+    """إيقاف ngrok tunnel"""
+    global ngrok_tunnel
+    try:
+        from pyngrok import ngrok
+        if ngrok_tunnel:
+            ngrok.disconnect(ngrok_tunnel)
+            ngrok_tunnel = None
+
+        config["ngrok_enabled"] = False
+        config["ngrok_url"] = ""
+        save_config(config)
+
+        return jsonify({"ok": True, "enabled": False})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/ngrok/status", methods=["GET"])
+def ngrok_status():
+    """حالة ngrok tunnel"""
+    return jsonify({
+        "enabled": config.get("ngrok_enabled", False),
+        "url": config.get("ngrok_url", ""),
+        "token": config.get("ngrok_token", ""),
+        "domain": config.get("ngrok_domain", "")
+    })
+
+
+@app.route("/ngrok/config", methods=["POST"])
+def update_ngrok_config():
+    """تحديث إعدادات ngrok"""
+    data = request.json or {}
+    config["ngrok_token"] = data.get("token", "")
+    config["ngrok_domain"] = data.get("domain", "")
+    save_config(config)
+    return jsonify({"ok": True})
 
 
 @app.errorhandler(Exception)

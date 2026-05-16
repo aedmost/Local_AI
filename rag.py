@@ -26,6 +26,22 @@ def set_directories(files_dir: Path, db_dir: Path):
     _collection = _client.get_or_create_collection("docs")
 
 
+def set_models_dir(models_dir: Path):
+    """تغيير مسار مجلد الموديلات في Ollama"""
+    global EMBED_MODEL
+    models_dir = Path(models_dir)
+    if not models_dir.exists():
+        models_dir.mkdir(parents=True, exist_ok=True)
+    # تعديل متغير البيئة OLLAMA_MODELS
+    os.environ['OLLAMA_MODELS'] = str(models_dir)
+    return str(models_dir)
+
+
+def get_models_dir():
+    """الحصول على مسار مجلد الموديلات الحالي"""
+    return os.environ.get('OLLAMA_MODELS', '')
+
+
 def get_collection():
     return _collection
 
